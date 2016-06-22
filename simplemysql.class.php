@@ -709,7 +709,7 @@ class SimpleMySQL
         if (!$this->logErrors || empty($this->logFile))
             return;
         $text = "[" . date("d.m.Y H:i:s") . "]: Error in query.\n    Query: $query\n    Error number: $num\n    Error text: $text\n\n";
-        $f = fopen(HOME_DIR . $this->logFile, "at");
+        $f = fopen($this->logFile, "at");
         fwrite($f, $text);
         fclose($f);
     }
