@@ -6,7 +6,7 @@
  *
  * @author     BaD ClusteR
  * @license    http://www.gnu.org/licenses/gpl.html GPL license agreement
- * @version    1.2
+ * @version    1.3
  * @link       http://badcluster.ru
  *
  * Safe work with MySQL queries.
@@ -56,23 +56,23 @@ class SimpleMySQL
      */
     private $connected = false;
     /**
-     * @var bool Whether to write errors to log file or not
+     * @var bool Whether to write errors to the log file or not
      * @since 1.2
      */
     private $logErrors = false;
-	/**
-	 * @var bool Whether to write backtrace to the log file or not
-	 */
-	private $logStack = true;
-	/**
-	 * @var bool Whether to write functions' parameters in the backtrace or not
-	 */
-	private $stackVars = true;
-	/**
-	 * @var string File path where errors will be written
-	 * @since 1.2
-	 */
-	private $logFile = "";
+    /**
+     * @var bool Whether to write backtrace to the log file or not
+     */
+    private $logStack = true;
+    /**
+     * @var bool Whether to write functions' parameters in the backtrace or not
+     */
+    private $stackVars = true;
+    /**
+     * @var string File path where errors will be written
+     * @since 1.2
+     */
+    private $logFile = "";
 
 
     function __construct($login, $pass, $db, $host = "localhost", $port = "3306", $res_encoding = "utf8")
@@ -712,149 +712,153 @@ class SimpleMySQL
      *
      * @since 1.2
      */
-	private function queryError($num, $text, $query)
-	{
-		if (!$this->logErrors || empty($this->logFile))
-			return;
-		$text = "[" . date("d.m.Y H:i:s") . "]: SQL error #$num.\n    Error text: $text\n    Query: $query\n";
-		if ($this->logStack)
-			$text .= "    Backtrace:\n" . $this->getBacktraceString() . "\n";
-		else
-			$text .= "\n";
-		$f = fopen($this->logFile, "at");
-		fwrite($f, $text);
-		fclose($f);
-	}
+    private function queryError($num, $text, $query)
+    {
+        if (!$this->logErrors || empty($this->logFile))
+            return;
+        $text = "[" . date("d.m.Y H:i:s") . "]: SQL error #$num.\n    Error text: $text\n    Query: $query\n";
+        if ($this->logStack)
+            $text .= "    Backtrace:\n" . $this->getBacktraceString() . "\n";
+        else
+            $text .= "\n";
+        $f = fopen($this->logFile, "at");
+        fwrite($f, $text);
+        fclose($f);
+    }
 
-	/**
-	 * @return bool
-	 * @since 1.3
-	 */
-	public function getBacktrace()
-	{
-		return $this->logStack;
-	}
+    /**
+     * @return bool
+     * @since 1.3
+     */
+    public function getBacktrace()
+    {
+        return $this->logStack;
+    }
 
-	/**
-	 * @return bool
-	 * @since 1.3
-	 */
-	public function getStackVars()
-	{
-		return $this->stackVars;
-	}
+    /**
+     * @return bool
+     * @since 1.3
+     */
+    public function getStackVars()
+    {
+        return $this->stackVars;
+    }
 
-	/**
-	 * @param bool $state State
-	 * @param bool $stackVars Whether to write parameters in the backtrace or not
-	 *
-	 * @since 1.3
-	 */
-	public function setBacktrace($state, $stackVars)
-	{
-		$this->logStack = (!$state) ? false : true;
-		$this->stackVars = (!$stackVars) ? false : true;
-	}
+    /**
+     * @param bool $state State
+     * @param bool $stackVars Whether to write parameters in the backtrace or not
+     *
+     * @since 1.3
+     */
+    public function setBacktrace($state, $stackVars)
+    {
+        $this->logStack = (!$state) ? false : true;
+        $this->stackVars = (!$stackVars) ? false : true;
+    }
 
-	/**
-	 * @param bool $state
-	 *
-	 * @since 1.2
-	 */
-	public function setLogErrors($state)
-	{
-		$this->logErrors = (!$state) ? false : true;
-	}
+    /**
+     * @param bool $state
+     *
+     * @since 1.2
+     */
+    public function setLogErrors($state)
+    {
+        $this->logErrors = (!$state) ? false : true;
+    }
 
-	/**
-	 * @since 1.2
-	 * @return bool
-	 */
-	public function getLogErrors()
-	{
-		return $this->logErrors;
-	}
+    /**
+     * @since 1.2
+     * @return bool
+     */
+    public function getLogErrors()
+    {
+        return $this->logErrors;
+    }
 
-	/**
-	 * @param string $filename Log file path
-	 *
-	 * @since 1.2
-	 */
-	public function setLogFile($filename)
-	{
-		$this->logFile = $filename;
-	}
+    /**
+     * @param string $filename Log file path
+     *
+     * @since 1.2
+     */
+    public function setLogFile($filename)
+    {
+        $this->logFile = $filename;
+    }
 
-	/**
-	 * @since 1.2
-	 * @return string
-	 */
-	public function getLogFile()
-	{
-		return $this->logFile;
-	}
+    /**
+     * @since 1.2
+     * @return string
+     */
+    public function getLogFile()
+    {
+        return $this->logFile;
+    }
 
-	/**
-	 * @param array $arr
-	 *
-	 * @return bool
-	 * @since 1.3
-	 */
-	private function is_assoc($arr)
-	{
-		$keys = array_keys($arr);
-		for ($i = 0; $i < sizeof($arr); $i++)
-			if (!in_array($i, $keys))
-				return true;
-		return false;
-	}
+    /**
+     * @param array $arr
+     *
+     * @return bool
+     * @since 1.3
+     */
+    private function is_assoc($arr)
+    {
+        $keys = array_keys($arr);
+        for ($i = 0; $i < sizeof($arr); $i++)
+            if (!in_array($i, $keys))
+                return true;
+        return false;
+    }
 
-	/**
-	 * @param mixed $var
-	 *
-	 * @return string
-	 * @since 1.3
-	 */
-	private function getVarTrace($var)
-	{
-		$type = gettype($var);
-		switch ($type)
-		{
-			case "boolean": return ($var) ? "TRUE" : "FALSE";
-			case "integer": return "$var";
-			case "double": return number_format($var, 4, ".", "");
-			case "string": return "\"$var\"";
-			case "array":
-			{
-				$is_assoc = $this->is_assoc($var);
-				$res = "[";
-				foreach ($var as $key => $value)
-					$res .= (($res == "[") ? "" : ", ") . ($is_assoc ? "$key =&gt; " : "") . $this->getVarTrace($value);
-				return $res . "]";
-			}
-			case "object": return get_class($var);
-		}
-		return $type;
-	}
+    /**
+     * @param mixed $var
+     *
+     * @return string
+     * @since 1.3
+     */
+    private function getVarTrace($var)
+    {
+        $type = gettype($var);
+        switch ($type)
+        {
+            case "boolean": return ($var) ? "TRUE" : "FALSE";
+            case "integer": return "$var";
+            case "double": return number_format($var, 4, ".", "");
+            case "string": return "\"$var\"";
+            case "array":
+            {
+                $is_assoc = $this->is_assoc($var);
+                $res = "[";
+                foreach ($var as $key => $value)
+                    $res .= (($res == "[") ? "" : ", ") . ($is_assoc ? "$key =&gt; " : "") . $this->getVarTrace($value);
+                return $res . "]";
+            }
+            case "object": return get_class($var);
+        }
+        return $type;
+    }
 
-	/**
-	 * @return string
-	 * @since 1.3
-	 */
-	private function getBacktraceString()
-	{
-		$res = "";
-		foreach (debug_backtrace() as $key => $value)
-		{
-			if ($key > 1)
-			{
-				$res .= "$value[file] ($value[line]): $value[function](";
-				if ($this->stackVars)
-					foreach ($value['args'] as $k => $v)
-						$res .= (($k > 0) ? ", " : "") . $this->getVarTrace($v);
-				$res .= ")\n";
-			}
-		}
-		return $res;
-	}
+    /**
+     * @return string
+     * @since 1.3
+     */
+    private function getBacktraceString()
+    {
+        $res = "";
+        foreach (debug_backtrace() as $key => $value)
+        {
+            if ($key > 1)
+            {
+                if (mb_substr($value['file'], 0, mb_strlen(HOME_DIR, ENCODING), ENCODING) == HOME_DIR)
+                    $value['file'] = mb_substr($value['file'], mb_strlen(HOME_DIR, ENCODING) + 1);
+                $res .= "        $value[file] ($value[line]): $value[function](";
+                if ($this->stackVars)
+                    foreach ($value['args'] as $k => $v)
+                        $res .= (($k > 0) ? ", " : "") . $this->getVarTrace($v);
+                $res .= ")\n";
+            }
+        }
+        return $res;
+    }
 }
+
+?>
