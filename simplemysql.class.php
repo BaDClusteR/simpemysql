@@ -6,7 +6,7 @@
  *
  * @author     BaD ClusteR
  * @license    http://www.gnu.org/licenses/gpl.html GPL license agreement
- * @version    1.3
+ * @version    1.4
  * @link       http://badcluster.ru
  *
  * Safe work with MySQL queries.
@@ -161,26 +161,22 @@ class SimpleMySQL
      */
     private function parseInt($val)
     {
-        if ($this->typesError && !is_int($val))
-            $this->error("Expected integer variable.");
-        $val = intval($val);
-        return $val;
+        return intval($val);
     }
 
     /**
      * Get the float value of a variable
      *
      * @param mixed $val Variable
+     * @param int $decimals Decimals point
      *
      * @return float
      * @since v. 1.0
      */
-    private function parseFloat($val)
+    private function parseFloat($val, $decimals = 0)
     {
-        if ($this->typesError && !is_int($val) && !is_float($val))
-            $this->error("Expected float variable.");
-        $val = number_format($val, 0, ".", "");
-        return $val;
+        die(number_format($val, $decimals, ".", ""));
+        return number_format($val, $decimals, ".", "");
     }
 
     /**
@@ -193,10 +189,7 @@ class SimpleMySQL
      */
     private function parseString($val)
     {
-        if ($this->typesError && (is_array($val) || is_object($val)))
-            $this->error("Expected string variable.");
-        $val = $this->sql_link->real_escape_string($val);
-        return "'" . $val . "'";
+        return "'" . $this->sql_link->real_escape_string($val) . "'";
     }
 
     public function setDecodeQueries($decode)
@@ -247,11 +240,7 @@ class SimpleMySQL
     private function parseArr($val)
     {
         if (!is_array($val))
-        {
-            if ($this->typesError)
-                $this->error("Expected array variable.");
-            return "()";
-        }
+            $val = (array)($val);
         $result = "(";
         foreach ($val as $key => $value)
             $result .= (($result == "(") ? "" : ", ") . $this->parseString($value);
@@ -269,11 +258,7 @@ class SimpleMySQL
     private function parseSet($val)
     {
         if (!is_array($val))
-        {
-            if ($this->typesError)
-                $this->error("Expected array variable.");
-            return "";
-        }
+            $val = array($val);
         $result = "";
         foreach ($val as $key => $value)
             $result .= (($result == "") ? "" : ", ") . $this->parseName($key) . " = " . $this->parseString($value);
@@ -354,26 +339,26 @@ class SimpleMySQL
      * Prepare INSERT statement based on the given table name and variables
      *
      * @param string $table Table name
-     * @param array $vals Values array
+     * @param array $values Values array
      *
      * @return string
      * @since v. 1.0
      */
-    public function prepareInsert($table, $vals)
+    public function prepareInsert($table, $values)
     {
         $table = $this->parseName($table);
         $result = "INSERT INTO $table";
-        if (!is_array($vals))
+        if (!is_array($values))
         {
             $this->error("Array expected.");
             return $result;
         }
         $result .= " SET ";
-        foreach ($vals as $key => $value)
+        foreach ($values as $key => $value)
         {
             if ($key > 0)
                 $result .= ", ";
-            $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type']);
+            $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type'], $values['decimals'] ?: 0);
         }
         return $result;
     }
@@ -382,36 +367,36 @@ class SimpleMySQL
      * Prepare UPDATE statement based on the given table name, variables and conditions
      *
      * @param string $table Table name
-     * @param array $vals Values array
-     * @param array $conds Conditions array
+     * @param array $values Values array
+     * @param array $conditions Conditions array
      *
      * @return string
      * @since v. 1.0
      */
-    public function prepareUpdate($table, $vals, $conds)
+    public function prepareUpdate($table, $values, $conditions)
     {
         $table = $this->parseName($table);
         $result = "UPDATE $table";
-        if (!is_array($vals))
+        if (!is_array($values))
         {
             $this->error("Array expected.");
             return $result;
         }
         $result .= " SET ";
-        foreach ($vals as $key => $value)
+        foreach ($values as $key => $value)
         {
             if ($key > 0)
                 $result .= ", ";
-            $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type']);
+            $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type'], $value['decimals'] ?: 0);
         }
-        if (is_array($conds) && sizeof($conds) > 0)
+        if (is_array($conditions) && sizeof($conditions) > 0)
         {
             $result .= " WHERE ";
-            foreach ($conds as $key => $value)
+            foreach ($conditions as $key => $value)
             {
                 if ($key > 0)
                     $result .= " AND ";
-                $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type']);
+                $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type'], $value['decimals'] ?: 0);
             }
         }
         return $result;
@@ -422,11 +407,12 @@ class SimpleMySQL
      *
      * @param mixed $val Variable
      * @param string $type Variable type
+     * @param int $decimals Decimals point (only for float values)
      *
      * @return int|float|string
      * @since v. 1.0
      */
-    private function parseType($val, $type)
+    private function parseType($val, $type, $decimals = 0)
     {
         $result = "";
         switch ($type)
@@ -435,7 +421,7 @@ class SimpleMySQL
             case "decimal":
             case "int":     $result .= $this->parseInt($val); break;
             case "double":
-            case "float":   $result .= $this->parseFloat($val); break;
+            case "float":   $result .= $this->parseFloat($val, $decimals); break;
             case "str":
             case "string":  $result .= $this->parseString($val); break;
             case "binary":
@@ -449,26 +435,26 @@ class SimpleMySQL
      * Prepare DELETE statement based on the given table name and conditions
      *
      * @param string $table Table name
-     * @param array $conds Conditions array
+     * @param array $conditions Conditions array
      *
      * @return string
      * @since v. 1.0
      */
-    public function prepareDelete($table, $conds)
+    public function prepareDelete($table, $conditions)
     {
         $table = $this->parseName($table);
         $result = "DELETE FROM $table";
-        if (is_array($conds) && sizeof($conds) > 0)
+        if (is_array($conditions) && sizeof($conditions) > 0)
         {
             $result .= " WHERE ";
-            foreach ($conds as $key => $value)
+            foreach ($conditions as $key => $value)
             {
                 if ($key > 0)
                     $result .= " AND ";
-                $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type']);
+                $result .= $this->parseName($value['name']) . " = " . $this->parseType($value['value'], $value['type'], $value['decimals'] ?: 0);
             }
         }
-        elseif (!is_array($conds) && !empty($conds))
+        elseif (!is_array($conditions) && !empty($conds))
             $result .= " WHERE " . $conds;
         return $result;
     }
@@ -476,19 +462,33 @@ class SimpleMySQL
     private function parseVals($s, $args)
     {
         $result = "";
-        $arr = preg_split('~(\?[nsifuap])~u', $s, null, PREG_SPLIT_DELIM_CAPTURE);
-        foreach ($arr as $key => $value)
+        $arr = preg_split('~(\?[nsiuap])~u', $s, null, PREG_SPLIT_DELIM_CAPTURE);
+        $resultArr = array();
+        foreach ($arr as &$value)
+        {
+            $tempRes = preg_split('~(\?\d*[f])~u', $value, null, PREG_SPLIT_DELIM_CAPTURE);
+            foreach ($tempRes as $v)
+                $resultArr[] = $v;
+        }
+        foreach ($resultArr as $key => $value)
         {
             switch ($value)
             {
                 case "?i": $result .= $this->parseInt($args[0]); array_shift($args); break;
-                case "?f": $result .= $this->parseFloat($args[0]); array_shift($args); break;
+                //case "?f": $result .= $this->parseFloat($args[0]); array_shift($args); break;
                 case "?s": $result .= $this->parseString($args[0]); array_shift($args); break;
                 case "?n": $result .= $this->parseName($args[0]); array_shift($args); break;
                 case "?a": $result .= $this->parseArr($args[0]); array_shift($args); break;
                 case "?u": $result .= $this->parseSet($args[0]); array_shift($args); break;
                 case "?p": $result .= $args[0]; array_shift($args); break;
-                default: $result .= $value;
+                default:
+                    if (preg_match('~(\?\d*[f])~u', $value))
+                    {
+                        $result .= $this->parseFloat($args[0], mb_substr($value, 1, -1, ENCODING));
+                        array_shift($args);
+                    }
+                    else
+                        $result .= $value;
             }
         }
         return $result;
@@ -530,7 +530,7 @@ class SimpleMySQL
             {
                 if (is_array($value))
                     $result .= (!$first ? ((!empty($value['conn']) && strtolower($value['conn']) == 'or') ? " OR " : " AND ") : "") . $this->parseName($value['name']) . " = " .
-                        $this->parseType($value['value'], $value['type']);
+                        $this->parseType($value['value'], $value['type'], $value['decimals'] ?: 0);
                 else
                     $result .= ((!$first) ? " AND " : "") . $this->parseName($key) . " = " . $this->parseString($value);
                 $first = false;
@@ -550,7 +550,7 @@ class SimpleMySQL
             {
                 if (is_array($value))
                     $result .= ((!empty($value['conn']) && strtolower($value['conn']) == 'or') ? " OR " : " AND ") . $this->parseName($value['name']) . " = " .
-                        $this->parseType($value['value'], $value['type']);
+                        $this->parseType($value['value'], $value['type'], $value['decimals'] ?: 0);
                 else
                     $result .= ((!$first) ? " AND " : "") . $this->parseName($key) . " = " . $this->parseString($value);
                 $first = false;
@@ -573,7 +573,7 @@ class SimpleMySQL
     }
 
     /**
-     * Executes the query and returns the result as an array of associative arrays (or FALSE if query wasn't successful)
+     * Performs query and returns the result as an array of associative arrays (or FALSE if query wasn't successful)
      *
      * @param string $s SQL query
      *
@@ -582,9 +582,9 @@ class SimpleMySQL
      */
     public function query($s)
     {
-        $vals = func_get_args();
-        array_shift($vals);
-        $s = $this->parseVals($s, $vals);
+        $args = func_get_args();
+        array_shift($args);
+        $s = $this->parseVals($s, $args);
         $t1 = microtime(true);
         if ($this->decode_queries && $this->encoding != $this->db_encoding)
             $s = iconv($this->encoding, $this->db_encoding, $s);
@@ -593,25 +593,62 @@ class SimpleMySQL
         $this->time = $t2 - $t1;
         if ($this->sql_link->error != '')
             $this->queryError($this->sql_link->errno, $this->sql_link->error, $s);
-        //$this->error("Error executing query.<br /><strong>Query: </strong>" . $s . "<br /><strong>Error (#" . $this->sql_link->errno . "): </strong>" . $this->sql_link->error);
         if ($res === false)
             return false;
         $result = array();
         if (is_bool($res))
             return true;
-        //for ($i = 0; $i < $res->field_count; $i++)
-        while ($temp = $res->fetch_assoc())
+        while ($row = $res->fetch_assoc())
         {
             if ($this->decode_queries && $this->encoding != $this->db_encoding)
-            {
-                $item = $temp;
-                foreach ($item as $key => $value)
-                    $item[$key] = iconv($this->db_encoding, $this->encoding . "//IGNORE", $value);
-                $result[] = $item;
-            }
-            else
-                $result[] = $temp;
+                foreach ($row as $key => &$value)
+                    $value = iconv($this->db_encoding, $this->encoding . "//IGNORE", $value);
+            $result[] = $row;
         }
+        return $result;
+    }
+
+    /**
+     * Performs multi query and returns the result as an array of associative arrays (or FALSE if query wasn't successful)
+     *
+     * @param string $s SQL queries divided with ;
+     *
+     * @return array|bool
+     * @since v. 1.4
+     */
+    public function queryMulti($s)
+    {
+        $args = func_get_args();
+        array_shift($args);
+        $s = $this->parseVals($s, $args);
+        $t1 = microtime(true);
+        if ($this->decode_queries && $this->encoding != $this->db_encoding)
+            $s = iconv($this->encoding, $this->db_encoding, $s);
+        $res = $this->sql_link->multi_query($s);
+        $t2 = microtime(true);
+        $this->time = $t2 - $t1;
+        if ($this->sql_link->error != '')
+            $this->queryError($this->sql_link->errno, $this->sql_link->error, $s);
+        if ($res === false)
+            return false;
+        $result = array();
+        do
+        {
+            if ($item = $this->sql_link->store_result())
+            {
+                var_dump($item);
+                $itemResult = array();
+                while ($row = $item->fetch_assoc())
+                {
+                    if ($this->decode_queries && $this->encoding != $this->db_encoding)
+                        foreach ($row as $key => &$value)
+                            $value = iconv($this->db_encoding, $this->encoding . "//IGNORE", $value);
+                    $itemResult[] = $row;
+                }
+                $result[] = $itemResult;
+            }
+        } while ($this->sql_link->next_result());
+
         return $result;
     }
 
@@ -625,34 +662,28 @@ class SimpleMySQL
      */
     public function queryFirst($s)
     {
-        $vals = func_get_args();
-        array_shift($vals);
+        $args = func_get_args();
+        array_shift($args);
         if (strpos($s, " LIMIT ") !== false)
             $s .= " LIMIT 1";
-        $s = $this->parseVals($s, $vals);
+        $s = $this->parseVals($s, $args);
         $t1 = microtime(true);
         $res = $this->sql_link->query($s, MYSQLI_USE_RESULT);
         $t2 = microtime(true);
         $this->time = $t2 - $t1;
         if ($this->sql_link->error != '')
             $this->queryError($this->sql_link->errno, $this->sql_link->error, $s);
-        //$this->error("Error executing query.<br /><strong>Query: </strong>" . $s . "<br /><strong>Error (#" . $this->sql_link->errno . "): </strong>" . $this->sql_link->error);
         if ($res === false)
             return false;
+        $row = $res->fetch_assoc();
         if ($this->decode_queries && $this->encoding != $this->db_encoding)
-        {
-            $item = $res->fetch_assoc();
-            foreach ($item as $key => $value)
-                $item[$key] = iconv($this->db_encoding, $this->encoding, $value);
-            $result = $item;
-        }
-        else
-            $result = $res->fetch_assoc();
-        return $result;
+            foreach ($row as $key => &$value)
+                $value = iconv($this->db_encoding, $this->encoding, $value);
+        return $row;
     }
 
     /**
-     * Executes the query and returns the first cell of the result
+     * Performs query and returns the first cell of the result
      *
      * @param string $s SQL query
      *
@@ -661,33 +692,58 @@ class SimpleMySQL
      */
     public function queryFirstCell($s)
     {
-        $vals = func_get_args();
-        array_shift($vals);
+        $args = func_get_args();
+        array_shift($args);
         if (strpos($s, " LIMIT ") === false)
             $s .= " LIMIT 1";
-        $s = $this->parseVals($s, $vals);
+        $s = $this->parseVals($s, $args);
         $t1 = microtime(true);
         $res = $this->sql_link->query($s, MYSQLI_USE_RESULT);
         $t2 = microtime(true);
         $this->time = $t2 - $t1;
         if ($this->sql_link->error != '')
             $this->queryError($this->sql_link->errno, $this->sql_link->error, $s);
-        //$this->error("Error executing query.<br /><strong>Query: </strong>" . $s . "<br /><strong>Error (#" . $this->sql_link->errno . "): </strong>" . $this->sql_link->error);
         if ($res === false)
             return false;
+        $row = $res->fetch_assoc();
         if ($this->decode_queries && $this->encoding != $this->db_encoding)
+            foreach ($row as $key => &$value)
+                $value = iconv($this->db_encoding, $this->encoding, $value);
+        return reset($row);
+    }
+
+    /**
+     * Performs query and returns requested column from the result. If requested index is equal or greater than the
+     * number of columns in the result, returns array filled with NULLs.
+     *
+     * @param string $s SQL query
+     * @param int $rowNum Column index
+     *
+     * @return array|bool
+     * @since v. 1.4
+     */
+    public function queryRow($s, $rowNum)
+    {
+        $args = func_get_args();
+        array_shift($args);
+        array_shift($args);
+        $s = $this->parseVals($s, $args);
+        $t1 = microtime(true);
+        $res = $this->sql_link->query($s, MYSQLI_USE_RESULT);
+        $t2 = microtime(true);
+        $this->time = $t2 - $t1;
+        if ($this->sql_link->error != '')
+            $this->queryError($this->sql_link->errno, $this->sql_link->error, $s);
+        if ($res === false)
+            return false;
+        $result = array();
+        while ($row = $res->fetch_row())
         {
-            $item = $res->fetch_assoc();
-            foreach ($item as $key => $value)
-                $item[$key] = iconv($this->db_encoding, $this->encoding, $value);
-            $result = $item;
+            if (!empty($row[$rowNum]) && $this->decode_queries && $this->encoding != $this->db_encoding)
+                $row[$rowNum] = iconv($this->db_encoding, $this->encoding, $row[$rowNum]);
+            $result[] = $row[$rowNum] ?: NULL;
         }
-        else
-            $result = $res->fetch_assoc();
-        if (is_array($result) && sizeof($result) > 0)
-            foreach ($result as $key => $value)
-                return $value;
-        return false;
+        return $result;
     }
 
     /**
@@ -700,7 +756,7 @@ class SimpleMySQL
     private function error($s)
     {
         $text = "Error in " . __FILE__ . " on line " . __LINE__ . ": $s";
-        trigger_error($text, E_USER_ERROR);
+        trigger_error($text, E_USER_WARNING);
     }
 
     /**
