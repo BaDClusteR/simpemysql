@@ -705,7 +705,11 @@ class SimpleMySQL
             $this->queryError($this->sql_link->errno, $this->sql_link->error, $s);
         if ($res === false)
             return false;
+        if (is_bool($res))
+            return true;
         $row = $res->fetch_assoc();
+        if (!is_array($row))
+            return NULL;
         if ($this->decode_queries && $this->encoding != $this->db_encoding)
             foreach ($row as $key => &$value)
                 $value = iconv($this->db_encoding, $this->encoding, $value);
